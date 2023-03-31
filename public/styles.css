@@ -1,4 +1,5 @@
-*, html {
+*,
+html {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -6,7 +7,7 @@
 
 body {
     background: #fafafa;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 16px;
     color: rgb(43, 43, 43);
 }
@@ -18,9 +19,11 @@ body {
 }
 
 .header {
+    display: flex;
+    justify-content: space-around;
     background: #fff;
-    border-bottom: 1px solid #e6e6e6;
-    padding: 1rem 2rem;
+    border: 1px solid #cccccc;
+    padding: 3rem 2rem;
     margin-bottom: 3rem;
 }
 
@@ -39,18 +42,29 @@ article {
     transition: all 0.25s ease-in-out;
 }
 
-h2 {
+.heading {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+h1.heading {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+h1 {
     font-size: 1.5rem;
     margin-bottom: 1rem;
 }
 
-h3 {
-    font-size: 1.25rem;
-    font-weight: 400;
-    margin: 1rem 0;
+h2 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
 }
 
-p {
+p.card {
     position: absolute;
     bottom: 10px;
 }
