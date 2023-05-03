@@ -1,2 +1,2 @@
-# Web-scraping-2
-Web scraping the Guardian's latest articles
+# Web-scraping
+Scraping a website to get contact info of food trucks for a digital marketing business
