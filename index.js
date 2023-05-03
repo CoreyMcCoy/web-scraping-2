@@ -1,121 +1,98 @@
-const PORT = process.env.PORT || 3000;
+const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const express = require('express');
-const app = express();
+const fs = require('fs');
+const { Parser } = require('json2csv');
+const nodemailer = require('nodemailer');
 const path = require('path');
+
+const app = express();
 const cors = require('cors');
+
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const websites = [
-    {
-        name: 'The Guardian - Artificial Intelligence',
-        address: 'https://www.theguardian.com/us/technology',
-        base: '',
-    },
-    {
-        name: 'MIT News - Computer Science And Artificial Intelligence Laboratory',
-        address: 'https://www.csail.mit.edu/news/',
-        base: 'https://www.csail.mit.edu',
-    },
-    {
-        name: 'OpenAI',
-        address: 'https://blog.openai.com',
-        base: 'https://blog.openai.com',
-    },
-    {
-        name: 'Robotics & AI | TechCrunch',
-        address: 'https://techcrunch.com',
-        base: 'https://techcrunch.com',
-    },
-    {
-        name: 'Machine Intelligence Research Institute',
-        address: 'https://intelligence.org',
-        base: '',
-    },
-    {
-        name: 'DeepMind',
-        address: 'https://deepmind.com',
-        base: 'https://deepmind.com',
-    },
-    {
-        name: 'MIT News - Artificial Intelligence',
-        address: 'https://news.mit.edu',
-        base: 'https://news.mit.edu',
-    },
-    {
-        name: 'The AI Blog',
-        address: 'https://blogs.microsoft.com',
-        base: '',
-    },
-    {
-        name: 'AI Impacts',
-        address: 'https://aiimpacts.org',
-        base: '',
-    },
-    {
-        name: 'AWS Machine Learning Blog',
-        address: 'https://aws.amazon.com',
-        base: '',
-    },
-    {
-        name: 'AI News',
-        address: 'https://artificialintelligence-news.com',
-        base: '',
-    },
-    {
-        name: 'Becoming Human: Artificial Intelligence Magazine',
-        address: 'https://becominghuman.ai',
-        base: 'https://becominghuman.ai',
-    },
-    {
-        name: 'Google AI Blog',
-        address: 'https://ai.googleblog.com',
-        base: '',
-    },
-    {
-        name: 'OpenAI Blog',
-        address: 'https://openai.com',
-        base: 'https://openai.com',
-    },
-];
+const url = 'https://thetexasfoodtruckshowdown.com/truck-lineup/';
 
-const articles = [];
+async function getTruckList(url) {
+    const response = await axios.get(url);
+    const $ = cheerio.load(response.data);
 
-websites.forEach((website) => {
-    axios
-        .get(website.address)
-        .then((response) => {
-            const html = response.data;
-            const $ = cheerio.load(html);
+    const trucks = [];
+    $('div.fl-builder-content-primary').each((_, element) => {
+        const foodTruckName = $(element).find('span.fl-heading-text').text();
+        const facebookUrl = $(element).find('li.pp-social-fb a').attr('href');
+        const instagramUrl = $(element).find('li.pp-social-instagram a').attr('href');
 
-            // Get the articles from websites that only reference the word "ai" or "AI" or "Artificial Intelligence" in the title. Display the title and the url and the source of the article.
-            $('a').each(function () {
-                const title = $(this).text();
-                const url = $(this).attr('href');
-                if (title.includes('AI') || title.includes('Artificial Intelligence')) {
-                    articles.push({
-                        title: title,
-                        url: website.base + url,
-                        source: website.name,
-                    });
+        const truck = {
+            foodTruckName,
+            facebookUrl,
+            instagramUrl,
+        };
+
+        trucks.push(truck);
+    });
+
+    return trucks;
+}
+
+// Email configuration
+const emailTransporter = nodemailer.createTransport({
+    host: 'smtp.titan.email', // Replace with your email provider's SMTP server address
+    port: 465,
+    secure: true,
+    auth: {
+        user: 'letschat@digitalmavens.net', // Replace with your email address
+        pass: 'Reinvent2018!', // Replace with your email password
+    },
+});
+
+async function sendEmailWithCSV(csvFile) {
+    const mailOptions = {
+        from: 'letschat@digitalmavens.net', // Replace with your email address
+        to: 'coreyamccoy@gmail.com', // Replace with the recipient's email address
+        subject: 'Trucks CSV', // Replace with the email subject
+        text: 'Please find the attached CSV file with the trucks data.', // Replace with the email body
+        attachments: [
+            {
+                filename: 'trucks.csv', // Replace with the attachment file name
+                content: fs.createReadStream(csvFile), // Replace with the attachment file path
+            },
+        ],
+    };
+
+    return emailTransporter.sendMail(mailOptions); // Return a promise to be handled in the calling function
+}
+
+app.get('/trucks', async (req, res) => {
+    try {
+        const trucks = await getTruckList(url);
+        const json2csvParser = new Parser();
+        const csvData = json2csvParser.parse(trucks);
+
+        fs.writeFile('trucks.csv', csvData, 'utf8', async (error) => {
+            if (error) {
+                console.log('Error:', error.message);
+                res.status(500).json({ error: 'An error occurred while saving the data to a file.' });
+            } else {
+                console.log('Data saved to trucks.csv file.');
+
+                try {
+                    await sendEmailWithCSV('trucks.csv');
+                    console.log('Email sent with trucks.csv attached.');
+                    res.json(trucks);
+                } catch (emailError) {
+                    console.log('Error:', emailError.message);
+                    res.status(500).json({ error: 'An error occurred while sending the email.' });
                 }
-            });
-        })
-        .catch((err) => console.log(err));
-});
-
-// Create a route to the index.html file
-
-app.get('/', (req, res) => {
-    res.send('index');
-});
-
-// Create an API endpoint to get the articles
-app.get('/results', (req, res) => {
-    res.json(articles);
+            }
+        });
+    } catch (error) {
+        console.log('Error:', error.message);
+        res.status(500).json({ error: 'An error occurred while scraping the data.' });
+    }
 });
 
 app.listen(PORT, () => console.log(`App is listening on port ${PORT}`));
